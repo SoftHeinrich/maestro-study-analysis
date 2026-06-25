@@ -110,3 +110,38 @@ def evaluate(threshold: int = 3) -> Dict[str, dict]:
         results[system] = row
 
     return {s: results[s] for s in SYSTEM_ORDER if s in results}
+
+
+# --- data for figures -------------------------------------------------------
+
+def rating_distribution() -> Dict[int, int]:
+    """{1..5: count} over the pooled (max-per-issue) HDFS ground truth."""
+    _, pooled_gt, _ = _load()
+    dist = {v: 0 for v in range(1, 6)}
+    for ratings in pooled_gt.values():
+        for v in ratings.values():
+            if 1 <= v <= 5:
+                dist[v] += 1
+    return dist
+
+
+def curve_by_k(metric: str, ks: List[int], threshold: int = 3) -> Dict[str, List[float]]:
+    """Mean nDCG@k or P@k per system, for each k.
+
+    Only the recomputed systems (original + 3 RAG strategies) are returned —
+    the frozen PyLucene variants have no per-k retrievals available offline.
+    """
+    from .metrics import ndcg_filtered, precision_filtered
+    fn = ndcg_filtered if metric == "ndcg" else precision_filtered
+    records, pooled_gt, _ = _load()
+
+    out: Dict[str, List[float]] = {}
+    for system in RECOMPUTED_SYSTEMS:
+        retr_key = "original_retrieved" if system == "original" else system
+        pairs = []
+        for rec in records:
+            ratings = pooled_gt.get((rec["task_name"], rec["question_key"]))
+            if ratings:
+                pairs.append((rec[retr_key], ratings))
+        out[system] = [sum(fn(ret, rt, k, threshold) for ret, rt in pairs) / len(pairs) for k in ks]
+    return out

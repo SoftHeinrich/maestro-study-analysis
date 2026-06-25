@@ -44,9 +44,29 @@ def test_newest_unrated_is_zero_by_construction():
         assert m["Unr@5"] == 0 and m["Unr@10"] == 0
 
 
+def test_curve_endpoints_match_table():
+    # nDCG@k at k=5 and k=10 must equal the headline table values.
+    ks = list(range(1, 11))
+    overall = newest.evaluate(threshold=3)
+    curves = newest.curve_by_k("ndcg", ks, threshold=3)
+    for system, ys in curves.items():
+        assert len(ys) == 10
+        assert abs(ys[4] - overall[system]["nDCG@5"]) < 1e-9
+        assert abs(ys[9] - overall[system]["nDCG@10"]) < 1e-9
+
+
+def test_rating_distributions_nonempty():
+    nd = newest.rating_distribution()
+    assert set(nd) == {"archrag", "archrag_rerank", "pylucene_rerank_gpt"}
+    assert all(sum(d.values()) > 0 for d in nd.values())
+    assert sum(pilot.rating_distribution().values()) > 0
+
+
 if __name__ == "__main__":
     test_pilot_reproduces_canonical()
     test_pilot_has_eight_systems()
     test_newest_three_systems_and_breakdowns()
     test_newest_unrated_is_zero_by_construction()
+    test_curve_endpoints_match_table()
+    test_rating_distributions_nonempty()
     print("OK — all reproduction checks passed")

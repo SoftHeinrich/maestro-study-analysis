@@ -112,3 +112,44 @@ def evaluate_by_project(threshold: int = 3) -> Dict[str, Dict[str, dict]]:
 
 def evaluate_by_question(threshold: int = 3) -> Dict[str, Dict[str, dict]]:
     return _breakdown(lambda r: r["question_key"], QUESTION_ORDER, threshold)
+
+
+# --- data for figures -------------------------------------------------------
+
+def rating_distribution() -> Dict[str, Dict[int, int]]:
+    """{system: {1..5: count}} over every individual issue rating."""
+    out: Dict[str, Dict[int, int]] = {s: {v: 0 for v in range(1, 6)} for s in SYSTEM_ORDER}
+    for r in load_rows():
+        s = system_label(r)
+        if s not in out:
+            continue
+        for it in json.loads(r["ratings"]):
+            out[s][int(it["rating"])] += 1
+    return out
+
+
+def curve_by_k(metric: str, ks: List[int], threshold: int = 3) -> Dict[str, List[float]]:
+    """Mean nDCG@k or P@k across all submissions, per system, for each k.
+
+    metric: "ndcg" or "precision".
+    """
+    from .metrics import ndcg_filtered, precision_filtered
+    fn = ndcg_filtered if metric == "ndcg" else precision_filtered
+
+    by_system: Dict[str, List[tuple]] = defaultdict(list)
+    for r in load_rows():
+        arr = json.loads(r["ratings"])
+        if not arr:
+            continue
+        retrieved = [it["issue_id"] for it in arr]
+        ratings = {it["issue_id"]: int(it["rating"]) for it in arr}
+        by_system[system_label(r)].append((retrieved, ratings))
+
+    out: Dict[str, List[float]] = {}
+    for s in SYSTEM_ORDER:
+        rows = by_system.get(s, [])
+        out[s] = [
+            (sum(fn(ret, rt, k, threshold) for ret, rt in rows) / len(rows)) if rows else 0.0
+            for k in ks
+        ]
+    return out

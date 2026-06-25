@@ -32,6 +32,25 @@ Outputs land in `outputs/`:
 
 Requires only the Python 3.8+ standard library (no third-party packages).
 
+## Figures
+
+Charts are optional and live in `figures.py` (kept separate so the core stays
+stdlib-only). They need matplotlib:
+
+```bash
+make venv        # create .venv and install matplotlib
+make figures     # render PNGs to outputs/figures/
+```
+
+Generates, for each study:
+- `*_rating_distribution.png` — rating histogram (per system for the newest
+  study; pooled ground truth for the pilot)
+- `*_ndcg_by_k.png` — nDCG@k for k = 1..10
+- `*_precision_by_k.png` — Precision@k for k = 1..10
+
+Pilot k-curves cover the recomputed systems only (the frozen PyLucene variants
+have no per-k retrievals offline).
+
 ## The two studies
 
 ### Pilot — Apache HDFS, 8 systems

@@ -1,3 +1,7 @@
-# No third-party dependencies — standard library only (Python 3.8+).
-# pytest is optional, for running tests/.
-pytest>=7.0 ; extra == "dev"
+# Core analysis (analyze.py, studies/, tests/) needs only the Python 3.8+
+# standard library — no third-party packages.
+#
+# Optional extras:
+#   matplotlib>=3.6   # only for figures.py (charts). Install in a venv:
+#                     #   make venv   (creates .venv and installs matplotlib)
+#   pytest>=7.0       # only to run tests/ via pytest (or run the file directly)
