@@ -1,7 +1,10 @@
-.PHONY: analyze figures test clean venv
+.PHONY: analyze impute figures test clean venv
 analyze:
 	python analyze.py --threshold 3
 	python analyze.py --threshold 4
+# Pilot skip-unrated vs TF-IDF-imputed GT (~1 min first run, then cached).
+impute:
+	python analyze.py --threshold 3 --impute
 # Figures need matplotlib; use the venv (see `make venv`).
 figures:
 	. .venv/bin/activate && python figures.py --threshold 3

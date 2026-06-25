@@ -128,6 +128,26 @@ def rating_distribution() -> Dict[str, Dict[int, int]]:
     return out
 
 
+def per_query_scores(metric: str, threshold: int = 3) -> Dict[str, List[float]]:
+    """Per-submission metric values for each system (for box plots).
+
+    metric: a key from metrics.METRIC_COLUMNS, e.g. "nDCG@10" or "P@10".
+    """
+    from .metrics import score_query
+    by_system: Dict[str, List[float]] = {s: [] for s in SYSTEM_ORDER}
+    for r in load_rows():
+        s = system_label(r)
+        if s not in by_system:
+            continue
+        arr = json.loads(r["ratings"])
+        if not arr:
+            continue
+        retrieved = [it["issue_id"] for it in arr]
+        ratings = {it["issue_id"]: int(it["rating"]) for it in arr}
+        by_system[s].append(score_query(retrieved, ratings, threshold)[metric])
+    return by_system
+
+
 def curve_by_k(metric: str, ks: List[int], threshold: int = 3) -> Dict[str, List[float]]:
     """Mean nDCG@k or P@k across all submissions, per system, for each k.
 

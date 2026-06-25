@@ -62,6 +62,22 @@ def test_rating_distributions_nonempty():
     assert sum(pilot.rating_distribution().values()) > 0
 
 
+def test_tfidf_imputation_primitives():
+    from studies.impute import TFIDFSimilarity, clamp_rating, predict_rating_knn
+    docs = {
+        "A": "data replication block storage hdfs",
+        "B": "data replication block storage hadoop",   # near-dup of A
+        "C": "user interface button color css layout",  # unrelated
+    }
+    tfidf = TFIDFSimilarity().fit(docs)
+    assert tfidf.similarity("A", "B") > tfidf.similarity("A", "C")
+    # Predict A's rating from neighbors {B:5, C:1}; B is far more similar → ~5.
+    pred = predict_rating_knn("A", {"B": 5, "C": 1}, tfidf, k=2, min_sim=0.0)
+    assert pred is not None and clamp_rating(pred) >= 4
+    # No similar rated neighbor → None.
+    assert predict_rating_knn("C", {"A": 4}, tfidf, k=2, min_sim=0.9) is None
+
+
 if __name__ == "__main__":
     test_pilot_reproduces_canonical()
     test_pilot_has_eight_systems()
@@ -69,4 +85,5 @@ if __name__ == "__main__":
     test_newest_unrated_is_zero_by_construction()
     test_curve_endpoints_match_table()
     test_rating_distributions_nonempty()
+    test_tfidf_imputation_primitives()
     print("OK — all reproduction checks passed")

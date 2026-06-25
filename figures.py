@@ -95,6 +95,58 @@ def _curve_fig(curves: Dict[str, List[float]], ks: List[int], ylabel: str, title
     plt.close(fig)
 
 
+def _box_fig(groups: Dict[str, List[float]], ylabel: str, title: str, path: str,
+             colors: List[str] = None) -> None:
+    """Simple box plot: one box per labelled group."""
+    labels = list(groups.keys())
+    data = [groups[k] for k in labels]
+    fig, ax = plt.subplots(figsize=(max(6, 1.2 * len(labels)), 4.5))
+    bp = ax.boxplot(data, tick_labels=labels, patch_artist=True, showmeans=True,
+                    medianprops=dict(color="black"),
+                    meanprops=dict(marker="D", markerfacecolor="white",
+                                   markeredgecolor="black", markersize=5))
+    for i, patch in enumerate(bp["boxes"]):
+        patch.set_facecolor((colors or [_color(l) for l in labels])[i])
+        patch.set_alpha(0.7)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.grid(axis="y", alpha=0.3)
+    plt.setp(ax.get_xticklabels(), rotation=20, ha="right", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def _paired_box_fig(skip: Dict[str, List[float]], imp: Dict[str, List[float]],
+                    ylabel: str, title: str, path: str) -> None:
+    """Box plot pairing skip-unrated vs imputed per system (pilot)."""
+    systems = list(skip.keys())
+    data, positions, ticks, tickpos = [], [], [], []
+    for i, s in enumerate(systems):
+        base = i * 3
+        data.append(skip[s]); positions.append(base + 1)
+        data.append(imp[s]); positions.append(base + 2)
+        ticks.append(s); tickpos.append(base + 1.5)
+    fig, ax = plt.subplots(figsize=(max(7, 2.2 * len(systems)), 4.8))
+    bp = ax.boxplot(data, positions=positions, widths=0.8, patch_artist=True,
+                    showmeans=True, medianprops=dict(color="black"),
+                    meanprops=dict(marker="D", markerfacecolor="white",
+                                   markeredgecolor="black", markersize=5))
+    for j, patch in enumerate(bp["boxes"]):
+        patch.set_facecolor("#bbbbbb" if j % 2 == 0 else "#55a868")
+        patch.set_alpha(0.75)
+    ax.set_xticks(tickpos)
+    ax.set_xticklabels(ticks, rotation=15, ha="right", fontsize=9)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.grid(axis="y", alpha=0.3)
+    ax.legend([bp["boxes"][0], bp["boxes"][1]], ["skip-unrated", "TF-IDF imputed"],
+              fontsize=9, loc="lower right")
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Render study figures")
     ap.add_argument("--threshold", type=int, default=3)
@@ -135,6 +187,26 @@ def main() -> None:
         f"Pilot study (HDFS) — Precision@k, recomputed systems (threshold ≥ {th})",
         os.path.join(FIG_DIR, "pilot_precision_by_k.png"),
     )
+
+    # ---- Box plots ----
+    # Newest: per-query nDCG@10 distribution per system (spread, not just mean).
+    _box_fig(
+        newest.per_query_scores("nDCG@10", th), "nDCG@10 (per submission)",
+        f"Newest study — per-submission nDCG@10 distribution (threshold ≥ {th})",
+        os.path.join(FIG_DIR, "newest_ndcg10_box.png"),
+    )
+
+    # Pilot: skip-unrated vs TF-IDF-imputed, per-query nDCG@10 and P@10.
+    print("Building imputed GT for box plots (first run ~1 min, then cached)...")
+    for metric, fname in [("nDCG@10", "pilot_ndcg10_box_skip_vs_imputed.png"),
+                          ("P@10", "pilot_p10_box_skip_vs_imputed.png")]:
+        _paired_box_fig(
+            pilot.per_query_scores(metric, th, augmented=False),
+            pilot.per_query_scores(metric, th, augmented=True),
+            f"{metric} (per query)",
+            f"Pilot (HDFS) — {metric}: skip-unrated vs TF-IDF imputed (threshold ≥ {th})",
+            os.path.join(FIG_DIR, fname),
+        )
 
     for f in sorted(os.listdir(FIG_DIR)):
         print("Wrote", os.path.join(FIG_DIR, f))

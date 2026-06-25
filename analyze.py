@@ -82,6 +82,33 @@ def build_report(threshold: int) -> str:
     return "\n".join(md)
 
 
+IMP_COLS = ["nDCG@5", "nDCG@10", "P@5", "P@10", "MRR"]
+
+
+def build_impute_section(threshold: int) -> str:
+    """Pilot: skip-unrated vs TF-IDF-imputed GT (var5-rating-classifier)."""
+    md: List[str] = ["\n## Pilot — skip-unrated vs TF-IDF-imputed ground truth\n"]
+    st = pilot.imputation_stats()
+    dist = ", ".join(f"{r}:{st['predicted_distribution'][r]}" for r in range(1, 6))
+    md.append(
+        f"TF-IDF KNN imputation fills judgement holes that the default skip-unrated "
+        f"metric ignores. Predicted **{st['predicted_ratings']}** ratings on top of "
+        f"{st['existing_ratings']} human ones (total {st['total_ratings']}); predicted "
+        f"distribution (1..5): {dist}.\n")
+
+    skip = pilot.evaluate(threshold)
+    imp = pilot.evaluate(threshold, gt=pilot.build_augmented_gt())
+    header = ["System", "GT"] + IMP_COLS
+    rows = []
+    for s in pilot.RECOMPUTED_SYSTEMS:
+        rows.append([s, "skip"] + [_fmt(skip[s][c]) for c in IMP_COLS])
+        rows.append(["", "imputed"] + [_fmt(imp[s][c]) for c in IMP_COLS])
+    md.append(_md_table(header, rows))
+    md.append("\n_`original` is unchanged (it has no unrated issues to fill). "
+              "The frozen PyLucene systems can't be rescored offline and are omitted._\n")
+    return "\n".join(md)
+
+
 def write_csvs(threshold: int) -> None:
     # Pilot
     with open(os.path.join(OUT_DIR, "pilot_hdfs.csv"), "w", newline="") as f:
@@ -108,10 +135,14 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Analyze Maestro search studies")
     ap.add_argument("--threshold", type=int, default=3, help="Relevance threshold (rating >= threshold)")
     ap.add_argument("--stdout", action="store_true", help="Also print the report to stdout")
+    ap.add_argument("--impute", action="store_true",
+                    help="Append the pilot skip-vs-TF-IDF-imputed comparison (~1 min first run)")
     args = ap.parse_args()
 
     os.makedirs(OUT_DIR, exist_ok=True)
     report = build_report(args.threshold)
+    if args.impute:
+        report += "\n" + build_impute_section(args.threshold)
     md_path = os.path.join(OUT_DIR, f"report_threshold{args.threshold}.md")
     with open(md_path, "w") as f:
         f.write(report)

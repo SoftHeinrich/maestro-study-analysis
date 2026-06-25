@@ -105,3 +105,22 @@ Within-list ranking quality (each student rated that engine's own results). Unr@
 | archrag | 260 | 0.7817 | 0.8786 | 0.7500 | 0.7242 | 0.8686 | 1.3385 | 0.9654 | 3.4192 |
 | archrag_rerank | 258 | 0.8185 | 0.9067 | 0.7814 | 0.7473 | 0.8993 | 1.2674 | 0.9884 | 3.4895 |
 | pylucene_rerank_gpt | 250 | 0.7725 | 0.8832 | 0.7352 | 0.7115 | 0.8717 | 1.3480 | 0.9880 | 3.3464 |
+
+
+## Pilot — skip-unrated vs TF-IDF-imputed ground truth
+
+TF-IDF KNN imputation fills judgement holes that the default skip-unrated metric ignores. Predicted **2803** ratings on top of 3564 human ones (total 6367); predicted distribution (1..5): 1:11, 2:274, 3:1010, 4:1269, 5:239.
+
+| System | GT | nDCG@5 | nDCG@10 | P@5 | P@10 | MRR |
+| --- | --- | --- | --- | --- | --- | --- |
+| original | skip | 0.7633 | 0.7409 | 0.7572 | 0.7281 | 0.8636 |
+|  | imputed | 0.7633 | 0.7409 | 0.7572 | 0.7281 | 0.8636 |
+| rag-token | skip | 0.8559 | 0.8155 | 0.8499 | 0.8256 | 0.9368 |
+|  | imputed | 0.9229 | 0.9119 | 0.9150 | 0.9035 | 0.9773 |
+| rag-sentence | skip | 0.8595 | 0.8234 | 0.8539 | 0.8332 | 0.9434 |
+|  | imputed | 0.9289 | 0.9183 | 0.9208 | 0.9098 | 0.9791 |
+| rag-issue | skip | 0.8713 | 0.8397 | 0.8645 | 0.8457 | 0.9413 |
+|  | imputed | 0.9167 | 0.9078 | 0.9129 | 0.9019 | 0.9582 |
+
+
+_`original` is unchanged (it has no unrated issues to fill). The frozen PyLucene systems can't be rescored offline and are omitted._

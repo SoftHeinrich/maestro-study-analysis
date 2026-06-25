@@ -47,9 +47,33 @@ Generates, for each study:
   study; pooled ground truth for the pilot)
 - `*_ndcg_by_k.png` — nDCG@k for k = 1..10
 - `*_precision_by_k.png` — Precision@k for k = 1..10
+- `newest_ndcg10_box.png` — per-submission nDCG@10 distribution per system
+- `pilot_{ndcg10,p10}_box_skip_vs_imputed.png` — box plots pairing skip-unrated
+  vs TF-IDF-imputed scores per system (see below)
 
 Pilot k-curves cover the recomputed systems only (the frozen PyLucene variants
 have no per-k retrievals offline).
+
+## TF-IDF imputation of unrated issues
+
+The default pilot metric *skips* unrated retrieved issues (see `Unr@k`), which is
+generous to systems that surface many unjudged issues. `studies/impute.py` adds
+an alternative: **impute** a rating for each unjudged issue from the human
+ratings of the most textually similar judged issues (TF-IDF cosine, KNN,
+similarity-weighted average). It's system-agnostic by design — issue-to-issue
+text only, never query–issue FAISS scores, which would bias the gold standard
+toward the RAG systems.
+
+Ported from the archRag branch `var5-rating-classifier`
+(`eval/predict_ratings_unbiased.py`). Run:
+
+```bash
+python analyze.py --threshold 3 --impute   # appends skip-vs-imputed table (~1 min first run)
+make impute
+```
+
+The augmented ground truth is cached under `outputs/.cache/` (gitignored); the
+issue-text corpus it needs is bundled at `data/pilot_hdfs/issue_texts.json`.
 
 ## The two studies
 
